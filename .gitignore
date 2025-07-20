@@ -1,0 +1,8 @@
+# Diretórios e arquivos ignorados
+__pycache__/
+venv/
+*.db
+*.sqlite3
+*.pyc
+.env
+.DS_Store
