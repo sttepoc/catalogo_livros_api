@@ -118,7 +118,7 @@
                         <div class="card-footer bg-white">
                             <div class="d-flex justify-content-between">
                                 <button class="btn btn-sm btn-outline-primary">Ver detalhes</button>
-                                <button class="btn btn-sm btn-outline-danger">Excluir</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="excluirLivro(${livro.id})">Excluir</button>
                             </div>
                         </div>
                     </div>
@@ -133,6 +133,19 @@
         });
 
         carregarLivros();
+        
+        async function excluirLivro(livroId) {
+            if (confirm('Tem certeza que deseja excluir este livro?')) {
+                const res = await apiRequest(`/livros/${livroId}`, 'DELETE');
+                
+                if (res.ok) {
+                    alert('Livro excluído com sucesso!');
+                    carregarLivros();
+                } else {
+                    alert(res.data.msg);
+                }
+            }
+        }
     </script>
 </body>
 </html>

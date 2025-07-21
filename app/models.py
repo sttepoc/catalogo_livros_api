@@ -12,6 +12,7 @@ class Livro(db.Model):
     autor = db.Column(db.String(100), nullable=False)
     ano_publicacao = db.Column(db.Integer)
     descricao = db.Column(db.Text)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)  # Novo campo
 
 class Resenha(db.Model):
     id = db.Column(db.Integer, primary_key=True)

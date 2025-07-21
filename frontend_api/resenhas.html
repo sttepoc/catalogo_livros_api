@@ -98,16 +98,16 @@
                         <div class="mb-3">
                             <label class="form-label">Nota</label>
                             <div class="d-flex align-items-center">
-                                <input type="range" class="form-range" min="1" max="5" id="notaRange" value="3">
+                                <input type="range" class="form-range" min="0" max="5" id="notaRange" value="0">
                                 <span class="ms-3 stars" id="starsPreview">
-                                    <i class="bi bi-star-fill"></i>
-                                    <i class="bi bi-star-fill"></i>
-                                    <i class="bi bi-star-fill"></i>
+                                    <i class="bi bi-star"></i>
+                                    <i class="bi bi-star"></i>
+                                    <i class="bi bi-star"></i>
                                     <i class="bi bi-star"></i>
                                     <i class="bi bi-star"></i>
                                 </span>
                             </div>
-                        </div>
+                        </div>      
                         <div class="mb-3">
                             <label class="form-label">Comentário</label>
                             <textarea class="form-control" id="conteudo" rows="4" required></textarea>
@@ -184,7 +184,7 @@
                         </div>
                         <div class="card-footer bg-white d-flex justify-content-end">
                             <button class="btn btn-sm btn-outline-primary me-2">Editar</button>
-                            <button class="btn btn-sm btn-outline-danger">Excluir</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="excluirResenha(${r.id})">Excluir</button>
                         </div>
                     </div>
                 </div>`;
@@ -192,13 +192,15 @@
             });
         }
 
-        // Atualizar visualização das estrelas
+        // Substitua o evento input existente por este:
         document.getElementById('notaRange').addEventListener('input', (e) => {
             const nota = parseInt(e.target.value);
             const starsContainer = document.getElementById('starsPreview');
+            
             starsContainer.innerHTML = Array(5).fill().map((_, i) => 
                 i < nota ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star"></i>'
             ).join('');
+            
         });
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
@@ -231,6 +233,19 @@
             await carregarLivros();
             carregarResenhas();
         });
+
+        async function excluirResenha(resenhaId) {
+            if (confirm('Tem certeza que deseja excluir esta resenha?')) {
+                const res = await apiRequest(`/resenhas/${resenhaId}`, 'DELETE');
+                
+                if (res.ok) {
+                    alert('Resenha excluída com sucesso!');
+                    carregarResenhas();
+                } else {
+                    alert(res.data.msg);
+                }
+            }
+        }
     </script>
 </body>
 </html>

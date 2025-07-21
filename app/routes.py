@@ -21,11 +21,14 @@ def listar_livros():
 @jwt_required()
 def criar_livro():
     data = request.json
+    usuario_id = get_jwt_identity()
+    print(f"Usuário {usuario_id} está adicionando um livro")
     livro = Livro(
         titulo=data['titulo'],
         autor=data['autor'],
-        ano_publicacao=data['ano'],
-        descricao=data['descricao']
+        ano_publicacao=data.get('ano'),
+        descricao=data.get('descricao'),
+        usuario_id=usuario_id
     )
     db.session.add(livro)
     db.session.commit()
@@ -46,10 +49,20 @@ def atualizar_livro(id):
 @api_bp.route('/livros/<int:id>', methods=['DELETE'])
 @jwt_required()
 def deletar_livro(id):
-    livro = Livro.query.get_or_404(id)
-    db.session.delete(livro)
-    db.session.commit()
-    return jsonify({'msg': 'Livro excluído'})
+    try:
+        usuario_id = int(get_jwt_identity())
+        livro = Livro.query.get_or_404(id)
+        livro_usuario_id = int(livro.usuario_id)
+
+        if livro_usuario_id != usuario_id:
+            return jsonify({'msg': 'Apenas o usuário que adicionou o livro pode excluí-lo'}), 403
+
+        db.session.delete(livro)
+        db.session.commit()
+        return jsonify({'msg': 'Livro excluído com sucesso'})
+
+    except Exception as e:
+        return jsonify({'msg': 'Erro interno ao excluir livro'}), 500
 
 @api_bp.route('/resenhas', methods=['GET'])
 @jwt_required()
@@ -68,9 +81,14 @@ def listar_resenhas():
 def criar_resenha():
     data = request.json
     usuario_id = get_jwt_identity()
+    
+    nota = int(data['nota'])
+    if nota < 0 or nota > 5:
+        return jsonify({'msg': 'A nota deve estar entre 0 e 5 estrelas'}), 400
+        
     resenha = Resenha(
         conteudo=data['conteudo'],
-        nota=int(data['nota']),
+        nota=nota,
         livro_id=int(data['livro_id']),
         usuario_id=usuario_id
     )
@@ -96,12 +114,17 @@ def editar_resenha(id):
 @api_bp.route('/resenhas/<int:id>', methods=['DELETE'])
 @jwt_required()
 def excluir_resenha(id):
-    usuario_id = get_jwt_identity()
-    resenha = Resenha.query.get_or_404(id)
+    try:
+        usuario_id = int(get_jwt_identity())
+        resenha = Resenha.query.get_or_404(id)
+        resenha_usuario_id = int(resenha.usuario_id)
 
-    if resenha.usuario_id != usuario_id:
-        return jsonify({'msg': 'Acesso negado'}), 403
+        if resenha_usuario_id != usuario_id:
+            return jsonify({'msg': 'Apenas o usuário que criou a resenha pode excluí-la'}), 403
 
-    db.session.delete(resenha)
-    db.session.commit()
-    return jsonify({'msg': 'Resenha excluída com sucesso'})
+        db.session.delete(resenha)
+        db.session.commit()
+        return jsonify({'msg': 'Resenha excluída com sucesso'})
+
+    except Exception as e:
+        return jsonify({'msg': 'Erro interno ao excluir resenha'}), 500
