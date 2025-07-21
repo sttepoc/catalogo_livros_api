@@ -30,6 +30,30 @@
             color: #ffc107;
             font-size: 1.2rem;
         }
+        .star-rating {
+            display: inline-flex;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .star-rating .bi {
+            color: #dee2e6;
+            transition: all 0.2s;
+            padding: 0 2px;
+        }
+        .star-rating .bi-star-fill {
+            color: #ffc107;
+        }
+        .star-rating:hover .bi {
+            transform: scale(1.2);
+        }
+        .text-danger {
+            color: #dc3545 !important;
+        }
+        .star-rating .bi:nth-child(1) { transition-delay: 0s; }
+        .star-rating .bi:nth-child(2) { transition-delay: 0.05s; }
+        .star-rating .bi:nth-child(3) { transition-delay: 0.1s; }
+        .star-rating .bi:nth-child(4) { transition-delay: 0.15s; }
+        .star-rating .bi:nth-child(5) { transition-delay: 0.2s; }
     </style>
 </head>
 <body>
@@ -96,18 +120,19 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Nota</label>
+                            <label class="form-label">Nota*</label>
                             <div class="d-flex align-items-center">
-                                <input type="range" class="form-range" min="0" max="5" id="notaRange" value="0">
-                                <span class="ms-3 stars" id="starsPreview">
-                                    <i class="bi bi-star"></i>
-                                    <i class="bi bi-star"></i>
-                                    <i class="bi bi-star"></i>
-                                    <i class="bi bi-star"></i>
-                                    <i class="bi bi-star"></i>
-                                </span>
+                                <div class="star-rating">
+                                    <i class="bi bi-star" data-rating="1"></i>
+                                    <i class="bi bi-star" data-rating="2"></i>
+                                    <i class="bi bi-star" data-rating="3"></i>
+                                    <i class="bi bi-star" data-rating="4"></i>
+                                    <i class="bi bi-star" data-rating="5"></i>
+                                    <input type="hidden" id="notaRange" value="0" required>
+                                </div>
+                                <span class="ms-2 text-muted" id="rating-text"></span>
                             </div>
-                        </div>      
+                        </div>  
                         <div class="mb-3">
                             <label class="form-label">Comentário</label>
                             <textarea class="form-control" id="conteudo" rows="4" required></textarea>
@@ -124,6 +149,45 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/frontend_api/js/api.js"></script>
     <script>
+        // Sistema de estrelas
+        const stars = document.querySelectorAll('.star-rating .bi');
+        const notaInput = document.getElementById('notaRange');
+        const ratingText = document.getElementById('rating-text');
+
+        function updateStars(rating) {
+            stars.forEach((star, index) => {
+                star.classList.toggle('bi-star-fill', index < rating);
+                star.classList.toggle('bi-star', index >= rating);
+            });
+            
+            // Textos descritivos (só mostra quando selecionado)
+            const texts = ['', '(Ruim)', '(Regular)', '(Bom)', '(Muito bom)', '(Excelente)'];
+            ratingText.textContent = texts[rating];
+        }
+
+        // Eventos
+        stars.forEach(star => {
+            star.addEventListener('click', (e) => {
+                const rating = parseInt(e.target.getAttribute('data-rating'));
+                notaInput.value = rating;
+                updateStars(rating);
+            });
+            
+            star.addEventListener('mouseover', (e) => {
+                const hoverRating = parseInt(e.target.getAttribute('data-rating'));
+                if (notaInput.value === "0") {
+                    updateStars(hoverRating);
+                }
+            });
+        });
+
+        document.querySelector('.star-rating').addEventListener('mouseleave', () => {
+            updateStars(parseInt(notaInput.value));
+        });
+
+        // Inicializa com 0 estrelas (vazio)
+        updateStars(0);
+
         // Variável para armazenar os livros
         let livrosDisponiveis = [];
 
@@ -192,27 +256,20 @@
             });
         }
 
-        // Substitua o evento input existente por este:
-        document.getElementById('notaRange').addEventListener('input', (e) => {
-            const nota = parseInt(e.target.value);
-            const starsContainer = document.getElementById('starsPreview');
-            
-            starsContainer.innerHTML = Array(5).fill().map((_, i) => 
-                i < nota ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star"></i>'
-            ).join('');
-            
-        });
-
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            localStorage.removeItem('token');
-            window.location.href = 'login.html';
-        });
-
+        // ============== VALIDAÇÃO DO FORMULÁRIO ==============
         document.getElementById('resenhaForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Validação da nota
+            if (notaInput.value === "0") {
+                alert('Por favor, selecione uma nota de 1 a 5 estrelas');
+                return;
+            }
+            
+            // Resto do código de envio...
             const resenha = {
                 livro_id: document.getElementById('livro_id').value,
-                nota: document.getElementById('notaRange').value,
+                nota: parseInt(notaInput.value),
                 conteudo: document.getElementById('conteudo').value
             };
             
@@ -220,11 +277,13 @@
             if (res.status === 201) {
                 alert('Resenha adicionada com sucesso!');
                 document.getElementById('resenhaForm').reset();
+                notaInput.value = 0;
+                updateStars(0);
                 const modal = bootstrap.Modal.getInstance(document.getElementById('novaResenhaModal'));
                 modal.hide();
                 carregarResenhas();
             } else {
-                alert('Erro ao adicionar resenha: ' + (res.data.msg || 'Tente novamente'));
+                alert('Erro: ' + (res.data.msg || 'Falha ao enviar resenha'));
             }
         });
 
