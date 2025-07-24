@@ -215,45 +215,62 @@
 
         // Função para carregar resenhas
         async function carregarResenhas() {
-            const res = await apiRequest('/resenhas');
-            const container = document.getElementById('listaResenhas');
-            container.innerHTML = '';
+            try {
+                const container = document.getElementById('listaResenhas');
+                container.innerHTML = '<div class="text-center my-4">Carregando resenhas...</div>';
 
-            if (!res.data.length) {
-                container.innerHTML = `
-                    <div class="col-12">
-                        <div class="alert alert-info text-center">
-                            Nenhuma resenha encontrada. Seja o primeiro a escrever!
+                const res = await apiRequest('/resenhas');
+                console.log('Resposta da API:', res);  // DEBUG (remova depois)
+
+                if (!res.ok || !Array.isArray(res.data)) {
+                    throw new Error(res.data?.msg || 'Dados inválidos');
+                }
+
+                container.innerHTML = '';
+
+                if (res.data.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-12">
+                            <div class="alert alert-info text-center">
+                                Nenhuma resenha encontrada.
+                            </div>
+                        </div>`;
+                    return;
+                }
+
+                res.data.forEach(r => {
+                    const livro = livrosDisponiveis.find(l => l.id === r.livro_id) || {};
+                    const stars = '★'.repeat(r.nota) + '☆'.repeat(5 - r.nota);
+
+                    const resenhaCard = `
+                    <div class="col-md-6 mb-4">
+                        <div class="card review-card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between mb-3">
+                                    <h5 class="card-title">${livro.titulo || 'Livro #'+r.livro_id}</h5>
+                                    <div class="stars text-warning">${stars}</div>
+                                </div>
+                                <p class="card-text">${r.conteudo}</p>
+                                <p class="card-text text-muted"><small>Por ${r.usuario_nome || 'Anônimo'}</small></p>
+                            </div>
+                            <div class="card-footer bg-white d-flex justify-content-end">
+                                <button class="btn btn-sm btn-outline-primary me-2" onclick="abrirEdicaoResenha(${r.id})">Editar</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="excluirResenha(${r.id})">Excluir</button>
+                            </div>
                         </div>
                     </div>`;
-                return;
+                    container.innerHTML += resenhaCard;
+                });
+
+            } catch (error) {
+                console.error('Erro ao carregar resenhas:', error);
+                document.getElementById('listaResenhas').innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-danger text-center">
+                            Erro ao carregar resenhas: ${error.message}
+                        </div>
+                    </div>`;
             }
-
-            res.data.forEach(r => {
-                const livro = livrosDisponiveis.find(l => l.id === r.livro_id) || {};
-                const stars = Array(5).fill().map((_, i) => 
-                    i < r.nota ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star"></i>'
-                ).join('');
-
-                const resenhaCard = `
-                <div class="col-md-6 mb-4">
-                    <div class="card review-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between mb-3">
-                                <h5 class="card-title">${livro.titulo || 'Livro #'+r.livro_id}</h5>
-                                <div class="stars">${stars}</div>
-                            </div>
-                            <p class="card-text">${r.conteudo}</p>
-                            <p class="card-text text-muted"><small>Por Usuário #${r.usuario_id}</small></p>
-                        </div>
-                        <div class="card-footer bg-white d-flex justify-content-end">
-                            <button class="btn btn-sm btn-outline-primary me-2" onclick="abrirEdicaoResenha(${r.id})">Editar</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="excluirResenha(${r.id})">Excluir</button>
-                        </div>
-                    </div>
-                </div>`;
-                container.innerHTML += resenhaCard;
-            });
         }
 
         async function abrirEdicaoResenha(resenhaId) {

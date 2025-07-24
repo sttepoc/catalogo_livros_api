@@ -108,14 +108,23 @@ def obter_livro(id):
 @api_bp.route('/resenhas', methods=['GET'])
 @jwt_required()
 def listar_resenhas():
-    resenhas = Resenha.query.all()
-    return jsonify([{
-        'id': r.id,
-        'conteudo': r.conteudo,
-        'nota': r.nota,
-        'livro_id': r.livro_id,
-        'usuario_id': r.usuario_id
-    } for r in resenhas])
+    try:
+        resenhas = (db.session.query(Resenha, Usuario.nome)
+                    .join(Usuario, Resenha.usuario_id == Usuario.id)
+                    .all())
+        
+        return jsonify([{
+            'id': r.Resenha.id,
+            'conteudo': r.Resenha.conteudo,
+            'nota': r.Resenha.nota,
+            'livro_id': r.Resenha.livro_id,
+            'usuario_id': r.Resenha.usuario_id,
+            'usuario_nome': r.nome  # Nome do usuário
+        } for r in resenhas])
+    
+    except Exception as e:
+        print(f"Erro ao buscar resenhas: {str(e)}")
+        return jsonify({'msg': 'Erro ao carregar resenhas'}), 500
 
 @api_bp.route('/resenhas', methods=['POST'])
 @jwt_required()
