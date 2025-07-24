@@ -247,13 +247,54 @@
                             <p class="card-text text-muted"><small>Por Usuário #${r.usuario_id}</small></p>
                         </div>
                         <div class="card-footer bg-white d-flex justify-content-end">
-                            <button class="btn btn-sm btn-outline-primary me-2">Editar</button>
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="abrirEdicaoResenha(${r.id})">Editar</button>
                             <button class="btn btn-sm btn-outline-danger" onclick="excluirResenha(${r.id})">Excluir</button>
                         </div>
                     </div>
                 </div>`;
                 container.innerHTML += resenhaCard;
             });
+        }
+
+        async function abrirEdicaoResenha(resenhaId) {
+            try {
+                const resPermissao = await apiRequest(`/resenhas/${resenhaId}/pode-editar`);
+                
+                if (!resPermissao.ok) {
+                    throw new Error('Falha ao verificar permissão');
+                }
+
+                if (!resPermissao.data.podeEditar) {
+                    throw new Error('Apenas o usuário que criou a resenha pode editá-la');
+                }
+
+                const resResenha = await apiRequest(`/resenhas/${resenhaId}`);
+                
+                if (!resResenha.ok) {
+                    throw new Error('Falha ao carregar dados da resenha');
+                }
+
+                // Preenche o formulário
+                document.getElementById('livro_id').value = resResenha.data.livro_id;
+                notaInput.value = resResenha.data.nota;
+                updateStars(resResenha.data.nota);
+                document.getElementById('conteudo').value = resResenha.data.conteudo;
+                
+                // Configura modo edição
+                const form = document.getElementById('resenhaForm');
+                form.dataset.modo = 'edicao';
+                form.dataset.id = resenhaId;
+                
+                // Atualiza UI e abre modal
+                document.querySelector('#novaResenhaModal .modal-title').textContent = 'Editar Resenha';
+                document.querySelector('#resenhaForm button[type="submit"]').textContent = 'Salvar Alterações';
+                
+                const modal = new bootstrap.Modal(document.getElementById('novaResenhaModal'));
+                modal.show();
+
+            } catch (error) {
+                alert('Erro ao abrir edição: ' + error.message);
+            }
         }
 
         // ============== VALIDAÇÃO DO FORMULÁRIO ==============
@@ -266,24 +307,35 @@
                 return;
             }
             
-            // Resto do código de envio...
             const resenha = {
                 livro_id: document.getElementById('livro_id').value,
                 nota: parseInt(notaInput.value),
                 conteudo: document.getElementById('conteudo').value
             };
             
-            const res = await apiRequest('/resenhas', 'POST', resenha);
-            if (res.status === 201) {
-                alert('Resenha adicionada com sucesso!');
-                document.getElementById('resenhaForm').reset();
-                notaInput.value = 0;
-                updateStars(0);
-                const modal = bootstrap.Modal.getInstance(document.getElementById('novaResenhaModal'));
-                modal.hide();
-                carregarResenhas();
-            } else {
-                alert('Erro: ' + (res.data.msg || 'Falha ao enviar resenha'));
+            const form = e.target;
+            const url = form.dataset.modo === 'edicao' 
+                ? `/resenhas/${form.dataset.id}` 
+                : '/resenhas';
+            const method = form.dataset.modo === 'edicao' ? 'PUT' : 'POST';
+            
+            try {
+                const res = await apiRequest(url, method, resenha);
+                
+                if (res.status === (form.dataset.modo === 'edicao' ? 200 : 201)) {
+                    alert(`Resenha ${form.dataset.modo === 'edicao' ? 'atualizada' : 'adicionada'} com sucesso!`);
+                    form.reset();
+                    notaInput.value = 0;
+                    updateStars(0);
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('novaResenhaModal'));
+                    modal.hide();
+                    carregarResenhas();
+                } else {
+                    alert('Erro: ' + (res.data.msg || 'Falha ao enviar resenha'));
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao processar resenha');
             }
         });
 

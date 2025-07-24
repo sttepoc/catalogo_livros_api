@@ -37,14 +37,42 @@ def criar_livro():
 @api_bp.route('/livros/<int:id>', methods=['PUT'])
 @jwt_required()
 def atualizar_livro(id):
+    try:
+        # Garante que o ID do usuário é inteiro
+        usuario_id = int(get_jwt_identity())
+        livro = Livro.query.get_or_404(id)
+        
+        # Debug: mostra os IDs para verificação
+        print(f"Usuário logado: {usuario_id} (tipo: {type(usuario_id)})")
+        print(f"Dono do livro: {livro.usuario_id} (tipo: {type(livro.usuario_id)})")
+        
+        if int(livro.usuario_id) != usuario_id:
+            return jsonify({'msg': 'Apenas o dono pode editar este livro'}), 403
+
+        data = request.json
+        livro.titulo = data['titulo']
+        livro.autor = data['autor']
+        livro.ano_publicacao = data.get('ano')
+        livro.descricao = data.get('descricao')
+        
+        db.session.commit()
+        return jsonify({'msg': 'Livro atualizado com sucesso'})
+    
+    except Exception as e:
+        print(f"Erro ao atualizar livro: {str(e)}")
+        return jsonify({'msg': 'Erro interno ao atualizar livro'}), 500
+
+@api_bp.route('/livros/<int:id>/pode-editar', methods=['GET'])
+@jwt_required()
+def verificar_edicao_livro(id):
     livro = Livro.query.get_or_404(id)
-    data = request.json
-    livro.titulo = data['titulo']
-    livro.autor = data['autor']
-    livro.ano_publicacao = data['ano']
-    livro.descricao = data['descricao']
-    db.session.commit()
-    return jsonify({'msg': 'Livro atualizado com sucesso'})
+    usuario_id = get_jwt_identity()
+    
+    return jsonify({
+        'podeEditar': livro.usuario_id == usuario_id,
+        'donoLivro': livro.usuario_id,
+        'usuarioAtual': usuario_id
+    }), 200
 
 @api_bp.route('/livros/<int:id>', methods=['DELETE'])
 @jwt_required()
@@ -63,6 +91,19 @@ def deletar_livro(id):
 
     except Exception as e:
         return jsonify({'msg': 'Erro interno ao excluir livro'}), 500
+    
+@api_bp.route('/livros/<int:id>', methods=['GET'])
+@jwt_required()
+def obter_livro(id):
+    livro = Livro.query.get_or_404(id)
+    return jsonify({
+        'id': livro.id,
+        'titulo': livro.titulo,
+        'autor': livro.autor,
+        'ano': livro.ano_publicacao,
+        'descricao': livro.descricao,
+        'usuario_id': livro.usuario_id
+    })
 
 @api_bp.route('/resenhas', methods=['GET'])
 @jwt_required()
@@ -99,17 +140,26 @@ def criar_resenha():
 @api_bp.route('/resenhas/<int:id>', methods=['PUT'])
 @jwt_required()
 def editar_resenha(id):
-    usuario_id = get_jwt_identity()
-    resenha = Resenha.query.get_or_404(id)
+    try:
+        usuario_id = int(get_jwt_identity())
+        resenha = Resenha.query.get_or_404(id)
 
-    if resenha.usuario_id != usuario_id:
-        return jsonify({'msg': 'Acesso negado'}), 403
+        if int(resenha.usuario_id) != usuario_id:
+            return jsonify({'msg': 'Apenas o dono pode editar esta resenha'}), 403
 
-    data = request.json
-    resenha.conteudo = data['conteudo']
-    resenha.nota = int(data['nota'])
-    db.session.commit()
-    return jsonify({'msg': 'Resenha atualizada com sucesso'})
+        data = request.json
+        nota = int(data['nota'])
+        if nota < 0 or nota > 5:
+            return jsonify({'msg': 'A nota deve estar entre 0 e 5 estrelas'}), 400
+
+        resenha.conteudo = data['conteudo']
+        resenha.nota = nota
+        db.session.commit()
+        return jsonify({'msg': 'Resenha atualizada com sucesso'})
+    
+    except Exception as e:
+        print(f"Erro ao atualizar resenha: {str(e)}")
+        return jsonify({'msg': 'Erro interno ao atualizar resenha'}), 500
 
 @api_bp.route('/resenhas/<int:id>', methods=['DELETE'])
 @jwt_required()
@@ -128,3 +178,27 @@ def excluir_resenha(id):
 
     except Exception as e:
         return jsonify({'msg': 'Erro interno ao excluir resenha'}), 500
+    
+@api_bp.route('/resenhas/<int:id>/pode-editar', methods=['GET'])
+@jwt_required()
+def verificar_edicao_resenha(id):
+    resenha = Resenha.query.get_or_404(id)
+    usuario_id = get_jwt_identity()
+        
+    return jsonify({
+        'podeEditar': int(resenha.usuario_id) == int(usuario_id),
+        'donoResenha': resenha.usuario_id,
+        'usuarioAtual': usuario_id
+    }), 200
+
+@api_bp.route('/resenhas/<int:id>', methods=['GET'])
+@jwt_required()
+def obter_resenha(id):
+    resenha = Resenha.query.get_or_404(id)
+    return jsonify({
+        'id': resenha.id,
+        'conteudo': resenha.conteudo,
+        'nota': resenha.nota,
+        'livro_id': resenha.livro_id,
+        'usuario_id': resenha.usuario_id
+    })
